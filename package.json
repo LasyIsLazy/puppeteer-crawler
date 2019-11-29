@@ -5,6 +5,10 @@
   "author": "Lasy",
   "license": "MIT",
   "dependencies": {
-    "puppeteer": "^2.0.0"
+    "axios": "^0.19.0",
+    "puppeteer-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.7.1"
   }
 }
