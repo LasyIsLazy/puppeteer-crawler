@@ -35,7 +35,7 @@ puppeteer
             const [seconds] = process.hrtime(processTime)
             process.stdout.write(`加载完成：${seconds}s\t`)
             const imgUrls = await page.evaluate(() => {
-                const $imgs = document.querySelectorAll('.edge img')
+                const $imgs = document.querySelectorAll('.edge .desktop img')
                 return $imgs && $imgs.length
                     ? [...$imgs].map($img => $img.src.replace(/\.\d+x\d+.+$/g, ''))
                     : []
