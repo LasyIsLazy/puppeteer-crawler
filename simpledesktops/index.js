@@ -33,7 +33,7 @@ puppeteer
             })
             unloading()
             const [seconds] = process.hrtime(processTime)
-            process.stdout.write(`加载完成：${seconds}s`)
+            process.stdout.write(`加载完成：${seconds}s\t`)
             const imgUrls = await page.evaluate(() => {
                 const $imgs = document.querySelectorAll('.edge img')
                 return $imgs && $imgs.length
