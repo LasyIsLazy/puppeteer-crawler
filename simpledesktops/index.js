@@ -33,7 +33,7 @@ puppeteer
             })
             unloading()
             const [seconds] = process.hrtime(processTime)
-            process.stdout.write(`加载完成：${seconds}s\t`)
+            process.stdout.write(`加载完成：${seconds}s`)
             const imgUrls = await page.evaluate(() => {
                 const $imgs = document.querySelectorAll('.edge .desktop img')
                 return $imgs && $imgs.length
@@ -44,7 +44,7 @@ puppeteer
             if (!pageImgAmount) {
                 await browser.close()
             }
-            console.log(`第 ${pageCount} 页图片数量：${pageImgAmount}`)
+            process.stdout.write(`\t图片数量：${pageImgAmount}`)
             imgUrls.forEach(async imgUrl => {
                 const name = imgUrl.replace(/.+\//g, '')
                 const { data } = await axios.get(imgUrl, {
