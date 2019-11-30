@@ -3,6 +3,9 @@ const axios = require('axios')
 const BASE_URL = 'http://simpledesktops.com/browse/'
 const path = require('path')
 const fs = require('fs')
+const launchConfig = require('../.launchrc.json')
+const IMG_DIR = path.join(__dirname, 'result')
+
 
 let loadingInterval
 function loading() {
@@ -15,49 +18,48 @@ function unloading() {
 }
 
 puppeteer
-    .launch({
-        headless: true,
-        executablePath: 'D:\\programs\\chrome-win\\chrome.exe',
-        defaultViewport: {
-            width: 1920,
-            height: 1080
-        },
-        args: ['--start-maximized']
-    })
+    .launch(launchConfig)
     .then(async browser => {
-        process.stdout.write(`浏览器已打开\n`)
+        console.log(`浏览器已打开`)
         const page = await browser.newPage()
-        process.stdout.write(`请求页面`)
-        console.time('加载用时')
-        loading()
-        await page.goto(`${BASE_URL}1`, {
-            timeout: 0
-        })
-        // process.stdout.write(`\n加载页面`)
-        // page.once('load', async () => {
-        unloading()
-        process.stdout.write(`加载完成`)
-        console.timeEnd('加载用时')
-        const imgUrls = await page.evaluate(() => {
-            const $imgs = document.querySelectorAll('.edge img')
-            return $imgs && $imgs.length
-                ? [...$imgs].map($img => $img.src.replace(/\.\d+x\d+.+$/g, ''))
-                : []
-        })
-        console.log(`本页图片数量：${imgUrls.length}`)
-        console.log(imgUrls)
-        const imgUrl = imgUrls[0]
-        const name = imgUrl.replace(/.+\//g, '')
-        const { headers, data } = await axios.get(imgUrl, {
-            responseType: 'stream'
-        })
-        const contentType = headers['content-type']
-        const [fileType, imgType] = contentType.split('/')
-        console.log(fileType, imgType)
-        const imgPath = path.join(__dirname, 'result', name)
-        data.pipe(fs.createWriteStream(imgPath))
-        await browser.close()
-        // })
+        let pageCount = 1
+        let pageImgAmount = 0
+        do {
+            process.stdout.write(`请求第 ${pageCount} 页`)
+            const processTime = process.hrtime()
+            loading()
+            await page.goto(`${BASE_URL}${pageCount}`, {
+                timeout: 0
+            })
+            unloading()
+            const [seconds] = process.hrtime(processTime)
+            process.stdout.write(`加载完成：${seconds}s`)
+            const imgUrls = await page.evaluate(() => {
+                const $imgs = document.querySelectorAll('.edge img')
+                return $imgs && $imgs.length
+                    ? [...$imgs].map($img => $img.src.replace(/\.\d+x\d+.+$/g, ''))
+                    : []
+            })
+            pageImgAmount = imgUrls.length
+            if (!pageImgAmount) {
+                await browser.close()
+            }
+            console.log(`第 ${pageCount} 页图片数量：${pageImgAmount}`)
+            imgUrls.forEach(async imgUrl => {
+                const name = imgUrl.replace(/.+\//g, '')
+                const { data } = await axios.get(imgUrl, {
+                    responseType: 'stream'
+                })
+                const imgPath = path.join(IMG_DIR, name)
+                fs.exists(IMG_DIR, exists => {
+                    if (!exists) {
+                        fs.mkdirSync(IMG_DIR)
+                    }
+                    data.pipe(fs.createWriteStream(imgPath))
+                })
+            })
+            pageCount++
+        } while (pageImgAmount > 0)
     })
     .catch(err => {
         unloading()
