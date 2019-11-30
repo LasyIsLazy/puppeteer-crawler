@@ -43,8 +43,9 @@ puppeteer
             pageImgAmount = imgUrls.length
             if (!pageImgAmount) {
                 await browser.close()
+                return
             }
-            process.stdout.write(`\t图片数量：${pageImgAmount}`)
+            process.stdout.write(`\t图片数量：${pageImgAmount}\n`)
             imgUrls.forEach(async imgUrl => {
                 const name = imgUrl.replace(/.+\//g, '')
                 const { data } = await axios.get(imgUrl, {
