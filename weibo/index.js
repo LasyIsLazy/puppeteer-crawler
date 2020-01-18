@@ -113,7 +113,7 @@ puppeteer
                     await page.waitFor(500)
                 }
 
-                const imgUrls = await page.evaluate(() => {
+                let imgUrls = await page.evaluate(() => {
                     return Array.prototype.map.call(
                         document.querySelectorAll(
                             '.ph_ar_box[action-type="widget_photoview"]'
