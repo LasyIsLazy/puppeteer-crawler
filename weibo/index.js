@@ -8,12 +8,13 @@ const Ora = require('ora')
 let imgPage
 let imgUrl
 let curTarget
-let imgUrls = []
+let watchDog
 const { account, password } = require('./account.json')
 
 puppeteer
     .launch({
-        headless: false,
+        // slowMo: 1000,
+        headless: true,
         executablePath:
             'C:/Users/lsy/AppData/Local/Google/Chrome SxS/Application/chrome.exe',
         defaultViewport: {
@@ -35,7 +36,6 @@ puppeteer
             console.log(`错误截图保存路径：${path.join(savePath)}`)
         }
         const login = async () => {
-            let watchDog
             try {
                 await page.evaluate(
                     value =>
@@ -88,82 +88,44 @@ puppeteer
 
                 spinner.start()
 
-                await page.goto(url)
+                await page.goto(url, {
+                    waitUntil: 'load'
+                })
 
                 const title = await page.title()
 
-                const firstCover = await page.$('.ph_ar_box .photo_pict')
-                firstCover.click()
-
-                updateStatus(`查看图片`)
-
-                await page.waitForResponse(
-                    res => res.url().indexOf('photo/tag/getphototag') !== 0
-                )
-                updateStatus(`图片加载完成`)
-
-                await page.waitForSelector(`[node-type="wrapIcon"]`)
-
-                let hasNext = true
-                let count = 0
-                while (hasNext) {
-                    nextImg(++count)
+                let hasMore = true
+                while (hasMore) {
+                    watchDog = page
+                        .waitForResponse(
+                            res => res.url().indexOf('album/loading') !== -1,
+                            {
+                                timeout: 2000
+                            }
+                        )
+                        .catch(() => {
+                            hasMore = false
+                        })
                     await page.evaluate(() => {
-                        document.querySelector(
-                            `[node-type="wrapIcon"]`
-                        ).style.display = 'block'
+                        window.scrollBy(0, document.body.clientHeight)
                     })
-                    await page.waitForSelector(`[title="查看原图"]`)
-                    await page.evaluate(() => {
-                        document.querySelector(`[title="查看原图"]`).click()
-                    })
-                    updateStatus(`查看原图`)
-
-                    const pageTarget = page.target()
-                    curTarget = await browser.waitForTarget(
-                        target => target.opener() === pageTarget
-                    )
-
-                    imgPage = await curTarget.page()
-
-                    updateStatus(`查看原图页面：${imgPage.url()}`)
-                    await imgPage.waitForSelector('.F_album')
-                    updateStatus(`原图页面加载完成`)
-                    imgUrl = await imgPage.evaluate(() => {
-                        const $pic = document.querySelector(`#pic`)
-                        if (!$pic) {
-                            return ''
-                        }
-                        return $pic.src
-                    })
-                    if (imgUrl) {
-                        updateStatus(`获取到图片地址：${imgUrl}`)
-                        imgUrls.push(imgUrl)
-                    } else {
-                        updateStatus('该照片不存在或已被删除')
-                    }
-
-                    updateStatus(`关闭图片原图页`)
-                    await imgPage.close()
-
-                    $preImg = await page.evaluate(() => {
-                        window._pptr_pre_img = document.querySelector(
-                            `[node-type="img_box"]>img`
-                        ).src
-                    })
-
-                    updateStatus(`点击下一页`)
-                    await page.mouse.move(1000, 400)
-                    await page.mouse.click(1000, 400)
-
-                    await page.waitFor(200)
-                    await page.mouse.move(820, 800)
-                    await page.waitFor(200)
-
-                    if (await page.$(`li.current:last-of-type`)) {
-                        hasNext = false
-                    }
+                    await watchDog
+                    await page.waitFor(500)
                 }
+
+                const imgUrls = await page.evaluate(() => {
+                    return Array.prototype.map.call(
+                        document.querySelectorAll(
+                            '.ph_ar_box[action-type="widget_photoview"]'
+                        ),
+                        ele => {
+                            const dataStr = ele.getAttribute('action-data')
+                            const mid = /mid=(.+?)&/g.exec(dataStr)[1]
+                            const pid = /pid=(.+?)&/g.exec(dataStr)[1]
+                            return `https://photo.weibo.com/3652509343/wbphotos/large/mid/${mid}/pid/${pid}`
+                        }
+                    )
+                })
 
                 const len = imgUrls.length
                 imgUrls = Array.from(new Set(imgUrls))
@@ -188,6 +150,11 @@ puppeteer
             }
 
             let url
+            if (process.env.NODE_ENV === 'development') {
+                url = process.env.URL
+                await processPhotos(url)
+                return
+            }
             while (true) {
                 url = readSyncByfs(`相册地址：`)
                 if (!url) {
@@ -219,8 +186,8 @@ puppeteer
             }
             const diff = process.hrtime(time)
             console.log(`加载、登录用时： ${diff[0]}秒`)
-            
-            console.log(`开始处理`)
+
+            console.log(`开始`)
             await crawl()
         } catch (error) {
             console.error(error)
