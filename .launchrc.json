@@ -1,11 +1,12 @@
 {
-    "headless": true,
-    "executablePath": "C:/Users/lsy/AppData/Local/Google/Chrome SxS/Application/chrome.exe",
+    "headless": false,
+    "executablePath": "C:/Users/Administrator/AppData/Local/Google/Chrome SxS/Application/chrome.exe",
     "defaultViewport": {
-        "width": 1920,
+        "width": 1600,
         "height": 1080
     },
     "args": [
-        "--start-maximized"
+        "--start-maximized",
+        "--proxy-server=58.222.32.77:8080"
     ]
 }
