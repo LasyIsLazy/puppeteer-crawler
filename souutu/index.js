@@ -3,6 +3,18 @@ const path = require('path')
 const fs = require('fs')
 const launchConfig = require('../.launchrc.json')
 const BASE_URL = `http://www.souutu.com/mnmm/`
+const TASK_PATH = path.join(__dirname, 'result', '.task.json')
+let taskInfomation = {
+    categoryUrls: [],
+    finishedCategory: [],
+    finishedPageUrls: []
+}
+
+function saveTask() {
+    fs.writeFile(TASK_PATH, JSON.stringify(taskInfomation), () => {
+        console.log(`任务进度保存`)
+    })
+}
 
 puppeteer
     .launch(launchConfig)
@@ -14,7 +26,7 @@ puppeteer
             let cur = 1
             let amount = 1
             let link = ''
-            let title = ''
+            let pageTitle = ''
             const imgUrls = []
             while (cur <= amount) {
                 const urlWithPage = url.replace('.html', `_${cur}.html`)
@@ -44,9 +56,9 @@ puppeteer
                 cur = pageData.cur
                 amount = pageData.amount
                 link = pageData.link
-                title = pageData.title
+                pageTitle = pageData.title
                 imgUrls.push(link)
-                console.log(`${title}(${cur}/${amount})`)
+                console.log(`${pageTitle}(${cur}/${amount})`)
                 // console.log(link)
                 cur++
                 await page.waitFor(300)
@@ -57,11 +69,11 @@ puppeteer
                 if (!exists) {
                     fs.mkdirSync(dir)
                 }
-                const filePath = `${dir}/${title}.txt`
+                const filePath = `${dir}/${pageTitle}.txt`
                 fs.writeFileSync(filePath, imgUrls.join('\n'))
                 console.log(`文件写入：${filePath}`)
             })
-            return imgUrls
+            return { imgUrls, pageTitle }
         }
 
         /**
@@ -71,7 +83,7 @@ puppeteer
         const getPageUrlsFromCategoryPage = async url => {
             let curPage = 1
             let pageAmount = 1
-            let title = ``
+            let categoryTitle = ``
             const pageUrls = []
             while (curPage <= pageAmount) {
                 await page.goto(
@@ -94,53 +106,63 @@ puppeteer
                 pageUrls.push(...pageData.urls)
                 if (curPage === 1) {
                     pageAmount = pageData.amount
-                    title = pageData.title
+                    categoryTitle = pageData.title
                 }
                 curPage++
             }
             console.log(`页面数量：${pageUrls.length}`)
-            // const dir = path.join(__dirname, 'result')
-            // fs.writeFile(
-            //     path.join(__dirname, 'result', '.task.json'),
-            //     JSON.stringify({
-            //         urls,
-            //         pageUrls: []
-            //     }),
-            //     () => {
-            //         console.log(`任务进度保存：分类页面 URL`)
-            //     }
-            // )
-            return { pageUrls, title }
+
+            return { pageUrls, categoryTitle }
         }
 
-        // fs.exists(path.join(__dirname, 'result'), exists => {
-        //     if (exists) {
-        //     }
-        // })
-        // fs.readdir(path.join(__dirname, 'result'), (err, files) => {
-        //     if (err) {
-        //         console.error(err)
-        //     }
-        //     files.filter(fileStr => fileStr.indexOf('.txt') !== -1)
-        // })
-        await page.goto(BASE_URL)
 
-        const urls = await page.evaluate(() =>
-            [...document.querySelectorAll('.catcaidanw li a')].map(
-                ele => ele.href
+        let categoryUrls = []
+        if (fs.existsSync(TASK_PATH)) {
+            console.log(`检测到执行过的任务，继续未完成任务`)
+            taskInfomation = JSON.parse(fs.readFileSync(TASK_PATH))
+            categoryUrls = taskInfomation.categoryUrls
+        } else {
+            await page.goto(BASE_URL)
+
+            categoryUrls = await page.evaluate(() =>
+                [...document.querySelectorAll('.catcaidanw li a')].map(
+                    ele => ele.href
+                )
             )
-        )
 
+            taskInfomation.categoryUrls = categoryUrls
+            saveTask()
+        }
 
-
-        for (const url of urls) {
+        for (const url of categoryUrls) {
+            if (taskInfomation.finishedCategory.indexOf(url) !== -1) {
+                console.log(`跳过已执行任务：分类页面：${url}`)
+                continue
+            }
             console.log(`进入分类页面：${url}`)
-            const { pageUrls, title } = await getPageUrlsFromCategoryPage(url)
+            const {
+                pageUrls,
+                categoryTitle
+            } = await getPageUrlsFromCategoryPage(url)
             for (const pageUrl of pageUrls) {
+                if (taskInfomation.finishedPageUrls.indexOf(pageUrl) !== -1) {
+                    console.log(`跳过已执行任务：查看图片页面：${pageUrl}`)
+                    continue
+                }
                 console.log(`进入查看图片页面：${pageUrl}`)
-                await getLinksFromPageUrl(pageUrl, title)
+                const { pageTitle } = await getLinksFromPageUrl(
+                    pageUrl,
+                    categoryTitle
+                )
+                taskInfomation.finishedPageUrls.push(pageUrl)
+                console.log(`查看图片页面 ${pageTitle} 已完成`)
+                saveTask()
                 await page.waitFor(1000)
             }
+            taskInfomation.finishedCategory.push(url)
+            // taskInfomation.finishedPageUrls = []
+            saveTask()
+            console.log(`分类 ${categoryTitle} 已完成`)
         }
     })
     .catch(err => {
