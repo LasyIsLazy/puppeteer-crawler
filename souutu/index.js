@@ -15,156 +15,166 @@ function saveTask() {
         console.log(`任务进度保存`)
     })
 }
+function start() {
+    puppeteer
+        .launch(launchConfig)
+        .then(async browser => {
+            console.log(`浏览器已打开`)
+            const page = await browser.newPage()
+            await page.setCacheEnabled(false)
 
-puppeteer
-    .launch(launchConfig)
-    .then(async browser => {
-        console.log(`浏览器已打开`)
-        const page = await browser.newPage()
-
-        const getLinksFromPageUrl = async (url, category) => {
-            let cur = 1
-            let amount = 1
-            let link = ''
-            let pageTitle = ''
-            const imgUrls = []
-            while (cur <= amount) {
-                const urlWithPage = url.replace('.html', `_${cur}.html`)
-                await page.goto(urlWithPage)
-                try {
-                    await page.waitForSelector('.showtitle')
-                } catch (error) {
-                    await page.waitFor(3000)
+            const getLinksFromPageUrl = async (url, category) => {
+                let cur = 1
+                let amount = 1
+                let link = ''
+                let pageTitle = ''
+                const imgUrls = []
+                while (cur <= amount) {
+                    const urlWithPage = url.replace('.html', `_${cur}.html`)
                     await page.goto(urlWithPage)
-                    await page.waitForSelector('.showtitle')
+                    try {
+                        await page.waitForSelector('.showtitle')
+                    } catch (error) {
+                        await page.waitFor(3000)
+                        await page.goto(urlWithPage)
+                        await page.waitForSelector('.showtitle')
+                    }
+                    const pageData = await page.evaluate(() => {
+                        const editw = document.querySelector('.editw')
+                        const cur = Number(
+                            /\((\d+)\//g.exec(editw.textContent)[1]
+                        )
+                        const amount = Number(
+                            /\/(\d+)\)/g.exec(editw.textContent)[1]
+                        )
+
+                        return {
+                            cur,
+                            amount,
+                            link: document.querySelector('.morew a').href,
+                            title: document.querySelector('.showtitle h2')
+                                .textContent
+                        }
+                    })
+                    cur = pageData.cur
+                    amount = pageData.amount
+                    link = pageData.link
+                    pageTitle = pageData.title
+                    imgUrls.push(link)
+                    console.log(`${pageTitle}(${cur}/${amount})`)
+                    // console.log(link)
+                    cur++
+                    await page.waitFor(1000)
                 }
-                const pageData = await page.evaluate(() => {
-                    const editw = document.querySelector('.editw')
-                    const cur = Number(/\((\d+)\//g.exec(editw.textContent)[1])
-                    const amount = Number(
-                        /\/(\d+)\)/g.exec(editw.textContent)[1]
+                console.log(`图片数量：${imgUrls.length}`)
+                const dir = path.join(__dirname, 'result', category)
+                fs.exists(dir, exists => {
+                    if (!exists) {
+                        fs.mkdirSync(dir)
+                    }
+                    const filePath = `${dir}/${pageTitle}.txt`
+                    fs.writeFileSync(filePath, imgUrls.join('\n'))
+                    console.log(`文件写入：${filePath}`)
+                })
+                return { imgUrls, pageTitle }
+            }
+
+            /**
+             * 从分类页面获取所有查看图片页面的 URL
+             * @param {String} url 分类页面 URL
+             */
+            const getPageUrlsFromCategoryPage = async url => {
+                let curPage = 1
+                let pageAmount = 1
+                let categoryTitle = ``
+                const pageUrls = []
+                while (curPage <= pageAmount) {
+                    await page.goto(
+                        curPage > 1 ? url + `index_${curPage}.html` : url
                     )
-
-                    return {
-                        cur,
-                        amount,
-                        link: document.querySelector('.morew a').href,
-                        title: document.querySelector('.showtitle h2')
-                            .textContent
+                    const pageData = await page.evaluate(() => {
+                        const btns = document.querySelectorAll('.listpages > *')
+                        return {
+                            urls: [
+                                ...document.querySelectorAll('.card-img a')
+                            ].map(ele => ele.href),
+                            amount: Number(btns[btns.length - 2].textContent),
+                            title: document.querySelector(
+                                '.indexlisttit a:last-of-type'
+                            ).textContent
+                        }
+                    })
+                    console.log(`${curPage}/${pageData.amount}`)
+                    // console.log(pageData.urls.join('\n'))
+                    pageUrls.push(...pageData.urls)
+                    if (curPage === 1) {
+                        pageAmount = pageData.amount
+                        categoryTitle = pageData.title
                     }
-                })
-                cur = pageData.cur
-                amount = pageData.amount
-                link = pageData.link
-                pageTitle = pageData.title
-                imgUrls.push(link)
-                console.log(`${pageTitle}(${cur}/${amount})`)
-                // console.log(link)
-                cur++
-                await page.waitFor(300)
-            }
-            console.log(`图片数量：${imgUrls.length}`)
-            const dir = path.join(__dirname, 'result', category)
-            fs.exists(dir, exists => {
-                if (!exists) {
-                    fs.mkdirSync(dir)
+                    curPage++
+                    await page.waitFor(1000)
                 }
-                const filePath = `${dir}/${pageTitle}.txt`
-                fs.writeFileSync(filePath, imgUrls.join('\n'))
-                console.log(`文件写入：${filePath}`)
-            })
-            return { imgUrls, pageTitle }
-        }
+                console.log(`页面数量：${pageUrls.length}`)
 
-        /**
-         * 从分类页面获取所有查看图片页面的 URL
-         * @param {String} url 分类页面 URL
-         */
-        const getPageUrlsFromCategoryPage = async url => {
-            let curPage = 1
-            let pageAmount = 1
-            let categoryTitle = ``
-            const pageUrls = []
-            while (curPage <= pageAmount) {
-                await page.goto(
-                    curPage > 1 ? url + `index_${curPage}.html` : url
-                )
-                const pageData = await page.evaluate(() => {
-                    const btns = document.querySelectorAll('.listpages > *')
-                    return {
-                        urls: [...document.querySelectorAll('.card-img a')].map(
-                            ele => ele.href
-                        ),
-                        amount: Number(btns[btns.length - 2].textContent),
-                        title: document.querySelector(
-                            '.indexlisttit a:last-of-type'
-                        ).textContent
-                    }
-                })
-                console.log(`${curPage}/${pageData.amount}`)
-                // console.log(pageData.urls.join('\n'))
-                pageUrls.push(...pageData.urls)
-                if (curPage === 1) {
-                    pageAmount = pageData.amount
-                    categoryTitle = pageData.title
-                }
-                curPage++
+                return { pageUrls, categoryTitle }
             }
-            console.log(`页面数量：${pageUrls.length}`)
 
-            return { pageUrls, categoryTitle }
-        }
+            let categoryUrls = []
+            if (fs.existsSync(TASK_PATH)) {
+                console.log(`检测到执行过的任务，继续未完成任务`)
+                taskInfomation = JSON.parse(fs.readFileSync(TASK_PATH))
+                categoryUrls = taskInfomation.categoryUrls
+            } else {
+                await page.goto(BASE_URL)
 
-
-        let categoryUrls = []
-        if (fs.existsSync(TASK_PATH)) {
-            console.log(`检测到执行过的任务，继续未完成任务`)
-            taskInfomation = JSON.parse(fs.readFileSync(TASK_PATH))
-            categoryUrls = taskInfomation.categoryUrls
-        } else {
-            await page.goto(BASE_URL)
-
-            categoryUrls = await page.evaluate(() =>
-                [...document.querySelectorAll('.catcaidanw li a')].map(
-                    ele => ele.href
+                categoryUrls = await page.evaluate(() =>
+                    [...document.querySelectorAll('.catcaidanw li a')].map(
+                        ele => ele.href
+                    )
                 )
-            )
 
-            taskInfomation.categoryUrls = categoryUrls
-            saveTask()
-        }
-
-        for (const url of categoryUrls) {
-            if (taskInfomation.finishedCategory.indexOf(url) !== -1) {
-                console.log(`跳过已执行任务：分类页面：${url}`)
-                continue
+                taskInfomation.categoryUrls = categoryUrls
+                saveTask()
             }
-            console.log(`进入分类页面：${url}`)
-            const {
-                pageUrls,
-                categoryTitle
-            } = await getPageUrlsFromCategoryPage(url)
-            for (const pageUrl of pageUrls) {
-                if (taskInfomation.finishedPageUrls.indexOf(pageUrl) !== -1) {
-                    console.log(`跳过已执行任务：查看图片页面：${pageUrl}`)
+
+            for (const url of categoryUrls) {
+                if (taskInfomation.finishedCategory.indexOf(url) !== -1) {
+                    console.log(`跳过已执行任务：分类页面：${url}`)
                     continue
                 }
-                console.log(`进入查看图片页面：${pageUrl}`)
-                const { pageTitle } = await getLinksFromPageUrl(
-                    pageUrl,
+                console.log(`进入分类页面：${url}`)
+                const {
+                    pageUrls,
                     categoryTitle
-                )
-                taskInfomation.finishedPageUrls.push(pageUrl)
-                console.log(`查看图片页面 ${pageTitle} 已完成`)
+                } = await getPageUrlsFromCategoryPage(url)
+                for (const pageUrl of pageUrls) {
+                    if (
+                        taskInfomation.finishedPageUrls.indexOf(pageUrl) !== -1
+                    ) {
+                        console.log(`跳过已执行任务：查看图片页面：${pageUrl}`)
+                        continue
+                    }
+                    console.log(`进入查看图片页面：${pageUrl}`)
+                    const { pageTitle } = await getLinksFromPageUrl(
+                        pageUrl,
+                        categoryTitle
+                    )
+                    taskInfomation.finishedPageUrls.push(pageUrl)
+                    console.log(`查看图片页面 ${pageTitle} 已完成`)
+                    saveTask()
+                    await page.waitFor(1000)
+                }
+                taskInfomation.finishedCategory.push(url)
+                // taskInfomation.finishedPageUrls = []
                 saveTask()
-                await page.waitFor(1000)
+                console.log(`分类 ${categoryTitle} 已完成`)
             }
-            taskInfomation.finishedCategory.push(url)
-            // taskInfomation.finishedPageUrls = []
-            saveTask()
-            console.log(`分类 ${categoryTitle} 已完成`)
-        }
-    })
-    .catch(err => {
-        console.error('Error:', err)
-    })
+        })
+        .catch(err => {
+            console.error('Error:', err)
+            console.log(`5 分钟后重试`)
+            setTimeout(() => start(), 5 * 60 * 1000)
+        })
+}
+
+start()
