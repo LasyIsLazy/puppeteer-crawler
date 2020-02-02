@@ -16,7 +16,7 @@ function saveTask() {
     })
 }
 function start() {
-    puppeteer
+    return puppeteer
         .launch(launchConfig)
         .then(async browser => {
             console.log(`浏览器已打开`)
@@ -31,12 +31,16 @@ function start() {
                 const imgUrls = []
                 while (cur <= amount) {
                     const urlWithPage = url.replace('.html', `_${cur}.html`)
-                    await page.goto(urlWithPage)
+                    await page.goto(urlWithPage, {
+                        waitUntil: 'domcontentloaded'
+                    })
                     try {
                         await page.waitForSelector('.showtitle')
                     } catch (error) {
                         await page.waitFor(3000)
-                        await page.goto(urlWithPage)
+                        await page.goto(urlWithPage, {
+                            waitUntil: 'domcontentloaded'
+                        })
                         await page.waitForSelector('.showtitle')
                     }
                     const pageData = await page.evaluate(() => {
@@ -64,7 +68,7 @@ function start() {
                     console.log(`${pageTitle}(${cur}/${amount})`)
                     // console.log(link)
                     cur++
-                    await page.waitFor(500)
+                    await page.waitFor(800)
                 }
                 console.log(`图片数量：${imgUrls.length}`)
                 const dir = path.join(__dirname, 'result', category)
@@ -72,7 +76,10 @@ function start() {
                     if (!exists) {
                         fs.mkdirSync(dir)
                     }
-                    const filePath = `${dir}/${pageTitle.replace(/[<>:"/\\|?*]/g, '')}.txt`
+                    const filePath = `${dir}/${pageTitle.replace(
+                        /[<>:"/\\|?*]/g,
+                        ''
+                    )}.txt`
                     fs.writeFileSync(filePath, imgUrls.join('\n'))
                     console.log(`文件写入：${filePath}`)
                 })
@@ -90,7 +97,10 @@ function start() {
                 const pageUrls = []
                 while (curPage <= pageAmount) {
                     await page.goto(
-                        curPage > 1 ? url + `index_${curPage}.html` : url
+                        curPage > 1 ? url + `index_${curPage}.html` : url,
+                        {
+                            waitUntil: 'domcontentloaded'
+                        }
                     )
                     const pageData = await page.evaluate(() => {
                         const btns = document.querySelectorAll('.listpages > *')
@@ -125,7 +135,9 @@ function start() {
                 taskInfomation = JSON.parse(fs.readFileSync(TASK_PATH))
                 categoryUrls = taskInfomation.categoryUrls
             } else {
-                await page.goto(BASE_URL)
+                await page.goto(BASE_URL, {
+                    waitUntil: 'domcontentloaded'
+                })
 
                 categoryUrls = await page.evaluate(() =>
                     [...document.querySelectorAll('.catcaidanw li a')].map(
