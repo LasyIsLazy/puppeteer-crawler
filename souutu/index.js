@@ -72,7 +72,7 @@ function start() {
                     if (!exists) {
                         fs.mkdirSync(dir)
                     }
-                    const filePath = `${dir}/${pageTitle}.txt`
+                    const filePath = `${dir}/${pageTitle.replace(/[<>:"/\\|?*]/g, '')}.txt`
                     fs.writeFileSync(filePath, imgUrls.join('\n'))
                     console.log(`文件写入：${filePath}`)
                 })
