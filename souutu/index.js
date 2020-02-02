@@ -34,32 +34,28 @@ function start() {
                     await page.goto(urlWithPage, {
                         waitUntil: 'domcontentloaded'
                     })
-                    try {
-                        await page.waitForSelector('.showtitle')
-                    } catch (error) {
-                        await page.waitFor(3000)
-                        await page.goto(urlWithPage, {
-                            waitUntil: 'domcontentloaded'
-                        })
-                        await page.waitForSelector('.showtitle')
-                    }
-                    const pageData = await page.evaluate(() => {
-                        const editw = document.querySelector('.editw')
-                        const cur = Number(
-                            /\((\d+)\//g.exec(editw.textContent)[1]
-                        )
-                        const amount = Number(
-                            /\/(\d+)\)/g.exec(editw.textContent)[1]
-                        )
+                    const pageData = await page
+                        .evaluate(() => {
+                            const editw = document.querySelector('.editw')
+                            const cur = Number(
+                                /\((\d+)\//g.exec(editw.textContent)[1]
+                            )
+                            const amount = Number(
+                                /\/(\d+)\)/g.exec(editw.textContent)[1]
+                            )
 
-                        return {
-                            cur,
-                            amount,
-                            link: document.querySelector('.morew a').href,
-                            title: document.querySelector('.showtitle h2')
-                                .textContent
-                        }
-                    })
+                            return {
+                                cur,
+                                amount,
+                                link: document.querySelector('.morew a').href,
+                                title: document.querySelector('.showtitle h2')
+                                    .textContent
+                            }
+                        })
+                        .catch(err => {
+                            browser.close()
+                            throw new Error(err)
+                        })
                     cur = pageData.cur
                     amount = pageData.amount
                     link = pageData.link
@@ -102,18 +98,27 @@ function start() {
                             waitUntil: 'domcontentloaded'
                         }
                     )
-                    const pageData = await page.evaluate(() => {
-                        const btns = document.querySelectorAll('.listpages > *')
-                        return {
-                            urls: [
-                                ...document.querySelectorAll('.card-img a')
-                            ].map(ele => ele.href),
-                            amount: Number(btns[btns.length - 2].textContent),
-                            title: document.querySelector(
-                                '.indexlisttit a:last-of-type'
-                            ).textContent
-                        }
-                    })
+                    const pageData = await page
+                        .evaluate(() => {
+                            const btns = document.querySelectorAll(
+                                '.listpages > *'
+                            )
+                            return {
+                                urls: [
+                                    ...document.querySelectorAll('.card-img a')
+                                ].map(ele => ele.href),
+                                amount: Number(
+                                    btns[btns.length - 2].textContent
+                                ),
+                                title: document.querySelector(
+                                    '.indexlisttit a:last-of-type'
+                                ).textContent
+                            }
+                        })
+                        .catch(err => {
+                            browser.close()
+                            throw new Error(err)
+                        })
                     console.log(`${curPage}/${pageData.amount}`)
                     // console.log(pageData.urls.join('\n'))
                     pageUrls.push(...pageData.urls)
