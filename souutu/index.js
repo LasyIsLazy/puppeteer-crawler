@@ -64,7 +64,7 @@ function start() {
                     console.log(`${pageTitle}(${cur}/${amount})`)
                     // console.log(link)
                     cur++
-                    await page.waitFor(1000)
+                    await page.waitFor(500)
                 }
                 console.log(`图片数量：${imgUrls.length}`)
                 const dir = path.join(__dirname, 'result', category)
@@ -121,7 +121,7 @@ function start() {
 
             let categoryUrls = []
             if (fs.existsSync(TASK_PATH)) {
-                console.log(`检测到执行过的任务，继续未完成任务`)
+                console.log(`检测到执行过的任务，继续未完成的任务`)
                 taskInfomation = JSON.parse(fs.readFileSync(TASK_PATH))
                 categoryUrls = taskInfomation.categoryUrls
             } else {
@@ -169,6 +169,7 @@ function start() {
                 saveTask()
                 console.log(`分类 ${categoryTitle} 已完成`)
             }
+            console.log(`已完成`)
         })
         .catch(err => {
             console.error('Error:', err)

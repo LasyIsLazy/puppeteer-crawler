@@ -1,5 +1,5 @@
 {
-    "headless": false,
+    "headless": true,
     "executablePath": "C:/Users/Administrator/AppData/Local/Google/Chrome SxS/Application/chrome.exe",
     "defaultViewport": {
         "width": 1600,
@@ -7,6 +7,6 @@
     },
     "args": [
         "--start-maximized",
-        "--proxy-server=58.222.32.77:8080"
+        "--proxy-server=210.26.49.88:3128"
     ]
 }
