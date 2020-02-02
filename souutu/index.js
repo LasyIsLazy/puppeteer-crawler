@@ -54,6 +54,7 @@ function start() {
                         })
                         .catch(err => {
                             browser.close()
+                            console.log(`遇到错误，关闭浏览器`)
                             throw new Error(err)
                         })
                     cur = pageData.cur
@@ -64,7 +65,7 @@ function start() {
                     console.log(`${pageTitle}(${cur}/${amount})`)
                     // console.log(link)
                     cur++
-                    await page.waitFor(800)
+                    await page.waitFor(1000)
                 }
                 console.log(`图片数量：${imgUrls.length}`)
                 const dir = path.join(__dirname, 'result', category)
@@ -117,6 +118,7 @@ function start() {
                         })
                         .catch(err => {
                             browser.close()
+                            console.log(`遇到错误，关闭浏览器`)
                             throw new Error(err)
                         })
                     console.log(`${curPage}/${pageData.amount}`)
