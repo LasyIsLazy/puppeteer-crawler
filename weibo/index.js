@@ -93,18 +93,19 @@ puppeteer
 
                 spinner.start()
 
+                status('相册加载中')
                 await page.goto(url, {
                     waitUntil: 'load'
                 })
-
-                status('')
 
                 const title = await page.title()
 
                 await page.waitFor(1000)
 
                 let hasMore = true
+                let pageCount = 1
                 while (hasMore) {
+                    status(`第${pageCount}页图片加载中`)
                     watchDog = page
                         .waitForResponse(
                             res => res.url().indexOf('album/loading') !== -1,
@@ -120,6 +121,7 @@ puppeteer
                         eles[eles.length - 1].scrollIntoView()
                     })
                     await watchDog
+                    status(`第${pageCount++}页图片加载完成`)
                     await page.waitFor(500)
                 }
 
@@ -140,11 +142,13 @@ puppeteer
                 })
 
                 imgPageUrls = Array.from(new Set(imgPageUrls))
+                status(`图片原图页面地址获取完成`)
 
                 /** 图片 */
                 let imgUrls = []
                 const imgPage = await browser.newPage()
                 for (let index = 0; index < imgPageUrls.length; index++) {
+                    status(`获取第${index + 1}张原图`)
                     const imgPageUrl = imgPageUrls[index]
                     await imgPage.goto(imgPageUrl, {
                         waitUntil: 'load'
@@ -153,8 +157,9 @@ puppeteer
                         () => document.getElementById('pic').src
                     )
                     imgUrls.push(src)
+                    status(`获取第${index + 1}张原图完成`)
                 }
-                const filePath = path.join(__dirname, 'img', title)
+                const filePath = path.join(__dirname, 'img', title + '.txt')
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
 
                 success()
