@@ -257,7 +257,7 @@ puppeteer
         const diff = process.hrtime(time)
         console.log(`加载、登录用时： ${diff[0]}秒`)
 
-        saveCookie()
+        await saveCookie()
 
         console.log(`开始`)
         try {
