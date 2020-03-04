@@ -10,9 +10,9 @@ const { account, password } = require('./account.json')
 puppeteer
     .launch({
         // slowMo: 1000,
-        headless: false,
+        headless: true,
         executablePath:
-            'C:/Users/lsy/AppData/Local/Google/Chrome SxS/Application/chrome.exe',
+            'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
         defaultViewport: {
             width: 1920,
             height: 1080
@@ -33,6 +33,9 @@ puppeteer
             })
             console.log(`错误截图保存路径：${path.join(savePath)}`)
         }
+        /**
+         * 登陆
+         */
         const login = async () => {
             try {
                 await page.evaluate(
@@ -65,7 +68,14 @@ puppeteer
                 errScreenshot()
             }
         }
+        /**
+         * 爬取图片
+         */
         const crawl = async () => {
+            /**
+             * 获取图片
+             * @param {String} url 相册 URL
+             */
             const processPhotos = async url => {
                 const spinner = new Ora({
                     discardStdin: false,
@@ -80,15 +90,17 @@ puppeteer
 
                 spinner.start()
 
-                await page.goto(url, {
+                await imgPage.goto(url, {
                     waitUntil: 'load'
                 })
 
-                const title = await page.title()
+                const title = await imgPage.title()
+
+                await imgPage.waitFor(1000)
 
                 let hasMore = true
                 while (hasMore) {
-                    watchDog = page
+                    watchDog = imgPage
                         .waitForResponse(
                             res => res.url().indexOf('album/loading') !== -1,
                             {
@@ -98,29 +110,45 @@ puppeteer
                         .catch(() => {
                             hasMore = false
                         })
-                    await page.evaluate(() => {
+                    await imgPage.evaluate(() => {
                         const eles = document.querySelectorAll('.photo_pict')
                         eles[eles.length - 1].scrollIntoView()
                     })
                     await watchDog
-                    await page.waitFor(500)
+                    await imgPage.waitFor(500)
                 }
 
-                let imgUrls = await page.evaluate(() => {
+                /** 图片原图页面 */
+                let imgPageUrls = await imgPage.evaluate(() => {
                     return Array.prototype.map.call(
                         document.querySelectorAll(
                             '.ph_ar_box[action-type="widget_photoview"]'
                         ),
                         ele => {
                             const dataStr = ele.getAttribute('action-data')
+                            const uid = /uid=(.+?)&/g.exec(dataStr)[1]
                             const mid = /mid=(.+?)&/g.exec(dataStr)[1]
                             const pid = /pid=(.+?)&/g.exec(dataStr)[1]
-                            return `https://photo.weibo.com/3652509343/wbphotos/large/mid/${mid}/pid/${pid}`
+                            return `https://photo.weibo.com/${uid}/wbphotos/large/mid/${mid}/pid/${pid}`
                         }
                     )
                 })
 
-                imgUrls = Array.from(new Set(imgUrls))
+                imgPageUrls = Array.from(new Set(imgPageUrls))
+
+                /** 图片 */
+                let imgUrls = []
+                const imgPage = await browser.newPage()
+                for (let index = 0; index < imgPageUrls.length; index++) {
+                    const imgPageUrl = imgPageUrls[index]
+                    await imgPage.goto(imgPageUrl, {
+                        waitUntil: 'load'
+                    })
+                    const src = await imgPage.evaluate(
+                        () => document.getElementById('pic').src
+                    )
+                    imgUrls.push(src)
+                }
                 const filePath = path.join(__dirname, 'img', title)
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
 
@@ -130,6 +158,10 @@ puppeteer
                 console.log(`写入文件：${filePath}`)
             }
 
+            /**
+             * 获取命令行输入
+             * @param {String} tips 提示
+             */
             function readSyncByfs(tips) {
                 tips = tips || '> '
                 process.stdout.write(tips)
