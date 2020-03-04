@@ -53,6 +53,7 @@ puppeteer
                     password
                 )
                 console.log(`密码输入完成`)
+                await page.waitFor(1000)
 
                 watchDog = page.waitForNavigation({
                     waitUntil: 'load'
@@ -68,6 +69,24 @@ puppeteer
                 errScreenshot()
             }
         }
+
+        const saveCookie = async () => {
+            const cookies = await page.cookies()
+            fs.writeFileSync(
+                path.join(__dirname, 'cookie'),
+                JSON.stringify(cookies)
+            )
+        }
+
+        const loadCookie = async () => {
+            const cookiePath = path.join(__dirname, 'cookie')
+            if (!fs.existsSync(cookiePath)) {
+                return
+            }
+            const cookies = JSON.parse(fs.readFileSync(cookiePath))
+            await page.setCookie(...cookies)
+        }
+
         /**
          * 爬取图片
          */
@@ -98,7 +117,7 @@ puppeteer
                     waitUntil: 'load'
                 })
 
-                await page.waitFor(1000)
+                await page.waitFor(2000)
 
                 const username = await page.evaluate(
                     () => document.querySelector('.username').textContent
@@ -155,11 +174,21 @@ puppeteer
                     await imgPage.goto(imgPageUrl, {
                         waitUntil: 'load'
                     })
-                    const src = await imgPage.evaluate(
-                        () => document.getElementById('pic').src
-                    )
-                    imgUrls.push(src)
-                    status(`获取第${index + 1}/${imgPageUrls.length}张原图完成`)
+                    try {
+                        const src = await imgPage.evaluate(
+                            () => document.getElementById('pic').src
+                        )
+                        imgUrls.push(src)
+                        status(
+                            `获取第${index + 1}/${imgPageUrls.length}张原图完成`
+                        )
+                    } catch (error) {
+                        status(
+                            `获取第${index + 1}/${
+                                imgPageUrls.length
+                            }张原图失败，URL：${imgPageUrl}`
+                        )
+                    }
                 }
                 const filePath = path.join(__dirname, 'img', username + '.txt')
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
@@ -201,29 +230,36 @@ puppeteer
         }
 
         try {
-            console.log(`进入首页`)
-            let time = process.hrtime()
-            await page.goto(BASE_URL, {
-                waitUntil: 'networkidle0'
-            })
+            loadCookie()
+        } catch (error) {
+            console.log('加载 cookie 失败，跳过')
+        }
+        console.log(`进入首页`)
+        let time = process.hrtime()
+        await page.goto(BASE_URL, {
+            waitUntil: 'networkidle0'
+        })
 
-            await page.waitForFunction(
-                () =>
-                    document.getElementById('loginname') ||
-                    document.querySelector('.headpic')
-            )
+        await page.waitForFunction(
+            () =>
+                document.getElementById('loginname') ||
+                document.querySelector('.headpic')
+        )
 
-            let isLogin = (await page.url().indexOf(`home`)) !== -1
-            console.log(`是否登录`, isLogin)
-            if (!isLogin) {
-                // 加载完成之后用户名和密码框还会变，登录失败可以尝试增大这个时间
-                await page.waitFor(1000)
-                await login()
-            }
-            const diff = process.hrtime(time)
-            console.log(`加载、登录用时： ${diff[0]}秒`)
+        let isLogin = (await page.url().indexOf(`/u/`)) !== -1
+        console.log(`是否登录`, isLogin)
+        if (!isLogin) {
+            // 加载完成之后用户名和密码框还会变，登录失败可以尝试增大这个时间
+            await page.waitFor(1000)
+            await login()
+        }
+        const diff = process.hrtime(time)
+        console.log(`加载、登录用时： ${diff[0]}秒`)
 
-            console.log(`开始`)
+        saveCookie()
+
+        console.log(`开始`)
+        try {
             await crawl()
         } catch (error) {
             console.error(error)
