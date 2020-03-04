@@ -17,7 +17,6 @@ puppeteer
             width: 1920,
             height: 1080
         },
-        userDataDir: path.join('./userDataDir'),
         args: ['--start-maximized']
     })
     .then(async browser => {
@@ -76,6 +75,7 @@ puppeteer
                 path.join(__dirname, 'cookie'),
                 JSON.stringify(cookies)
             )
+            console.log('cookie 保存完成')
         }
 
         const loadCookie = async () => {
@@ -85,6 +85,7 @@ puppeteer
             }
             const cookies = JSON.parse(fs.readFileSync(cookiePath))
             await page.setCookie(...cookies)
+            console.log('cookie 设置完成')
         }
 
         /**
