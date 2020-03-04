@@ -87,20 +87,25 @@ puppeteer
                     spinner.text = `链接获取完成`
                     spinner.succeed()
                 }
+                const status = text => {
+                    spinner.text = text
+                }
 
                 spinner.start()
 
-                await imgPage.goto(url, {
+                await page.goto(url, {
                     waitUntil: 'load'
                 })
 
-                const title = await imgPage.title()
+                status('')
 
-                await imgPage.waitFor(1000)
+                const title = await page.title()
+
+                await page.waitFor(1000)
 
                 let hasMore = true
                 while (hasMore) {
-                    watchDog = imgPage
+                    watchDog = page
                         .waitForResponse(
                             res => res.url().indexOf('album/loading') !== -1,
                             {
@@ -110,16 +115,16 @@ puppeteer
                         .catch(() => {
                             hasMore = false
                         })
-                    await imgPage.evaluate(() => {
+                    await page.evaluate(() => {
                         const eles = document.querySelectorAll('.photo_pict')
                         eles[eles.length - 1].scrollIntoView()
                     })
                     await watchDog
-                    await imgPage.waitFor(500)
+                    await page.waitFor(500)
                 }
 
-                /** 图片原图页面 */
-                let imgPageUrls = await imgPage.evaluate(() => {
+                /** 图片原图页面地址 */
+                let imgPageUrls = await page.evaluate(() => {
                     return Array.prototype.map.call(
                         document.querySelectorAll(
                             '.ph_ar_box[action-type="widget_photoview"]'
