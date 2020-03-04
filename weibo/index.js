@@ -150,7 +150,7 @@ puppeteer
                 let imgUrls = []
                 const imgPage = await browser.newPage()
                 for (let index = 0; index < imgPageUrls.length; index++) {
-                    status(`获取第${index + 1}张原图`)
+                    status(`获取第${index + 1}/${imgPageUrls.length}张原图`)
                     const imgPageUrl = imgPageUrls[index]
                     await imgPage.goto(imgPageUrl, {
                         waitUntil: 'load'
@@ -159,7 +159,7 @@ puppeteer
                         () => document.getElementById('pic').src
                     )
                     imgUrls.push(src)
-                    status(`获取第${index + 1}张原图完成`)
+                    status(`获取第${index + 1}/${imgPageUrls.length}张原图完成`)
                 }
                 const filePath = path.join(__dirname, 'img', username + '.txt')
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
