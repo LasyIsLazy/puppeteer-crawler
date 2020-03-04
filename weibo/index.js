@@ -1,20 +1,16 @@
 const puppeteer = require('puppeteer-core')
-const axios = require('axios')
 const BASE_URL = 'https://weibo.com/'
 const path = require('path')
 const fs = require('fs')
 const Ora = require('ora')
 
-let imgPage
-let imgUrl
-let curTarget
 let watchDog
 const { account, password } = require('./account.json')
 
 puppeteer
     .launch({
         // slowMo: 1000,
-        headless: true,
+        headless: false,
         executablePath:
             'C:/Users/lsy/AppData/Local/Google/Chrome SxS/Application/chrome.exe',
         defaultViewport: {
@@ -25,7 +21,9 @@ puppeteer
         args: ['--start-maximized']
     })
     .then(async browser => {
+        console.log(`浏览器已启动`)
         const page = await browser.newPage()
+        console.log(`打开新页面`)
         const errScreenshot = () => {
             fs.existsSync('./log') ||
                 fs.mkdir('./log', err => console.error(err))
@@ -74,12 +72,6 @@ puppeteer
                     prefixText: `相册：${url}`,
                     text: `开始获取`
                 })
-                const nextImg = count => {
-                    spinner.prefixText = `第 ${count} 张图片：`
-                }
-                const updateStatus = msg => {
-                    spinner.text = msg
-                }
                 const success = () => {
                     spinner.prefixText = ``
                     spinner.text = `链接获取完成`
@@ -107,7 +99,8 @@ puppeteer
                             hasMore = false
                         })
                     await page.evaluate(() => {
-                        window.scrollBy(0, document.body.clientHeight)
+                        const eles = document.querySelectorAll('.photo_pict')
+                        eles[eles.length - 1].scrollIntoView()
                     })
                     await watchDog
                     await page.waitFor(500)
@@ -127,9 +120,7 @@ puppeteer
                     )
                 })
 
-                const len = imgUrls.length
                 imgUrls = Array.from(new Set(imgUrls))
-                const imgLen = imgUrls.length
                 const filePath = path.join(__dirname, 'img', title)
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
 
@@ -155,10 +146,11 @@ puppeteer
                 await processPhotos(url)
                 return
             }
-            while (true) {
+            let loop = true
+            while (loop) {
                 url = readSyncByfs(`相册地址：`)
                 if (!url) {
-                    break
+                    loop = false
                 }
                 await processPhotos(url)
             }
