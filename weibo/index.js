@@ -98,9 +98,11 @@ puppeteer
                     waitUntil: 'load'
                 })
 
-                const title = await page.title()
-
                 await page.waitFor(1000)
+
+                const username = await page.evaluate(
+                    () => document.querySelector('.username').textContent
+                )
 
                 let hasMore = true
                 let pageCount = 1
@@ -159,7 +161,7 @@ puppeteer
                     imgUrls.push(src)
                     status(`获取第${index + 1}张原图完成`)
                 }
-                const filePath = path.join(__dirname, 'img', title + '.txt')
+                const filePath = path.join(__dirname, 'img', username + '.txt')
                 fs.writeFileSync(filePath, imgUrls.join(`\n`))
 
                 success()
