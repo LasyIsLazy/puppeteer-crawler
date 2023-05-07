@@ -5,7 +5,7 @@
   "author": "Lasy",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.19.0",
+    "axios": "^0.21.2",
     "puppeteer-core": "^2.0.0"
   },
   "devDependencies": {
